@@ -1,13 +1,15 @@
 import json
-from bluekeep_scanner import exploitBluekeep
-from eternalblue_scanner import exploitEternalblue
+from bluekeep import exploitBluekeep
+from eternalblue import exploitEternalblue
+from smbghost import exploitSmbghost
 
-fileName = raw_input("Enter file name: ")
+fileName = input("Enter file name: ")
 
 jsonData = json.load(open(fileName, 'r'))
 
 resBlueKeep = []
 resEternalBlue = []
+resSmbghost = []
 
 for item in jsonData:
     for port in item["ports"]:
@@ -18,8 +20,13 @@ for item in jsonData:
                 "ip": item["ip"],
                 "port": port
             })
-        if exploitBluekeep(item["ip"], port, hostname, username):
+        if exploitBluekeep(item["ip"], port):
             resBlueKeep.append({
+                "ip": item["ip"],
+                "port": port
+            })
+        if exploitSmbghost(item["ip"]):
+            resSmbghost.append({
                 "ip": item["ip"],
                 "port": port
             })
