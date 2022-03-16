@@ -40,3 +40,8 @@ resEternalblueJson = json.dumps(resEternalBlue)
 jsonFileNameEternalBlue = fileName.split(".")[0] + "Eternalblue.json"
 open(jsonFileNameEternalBlue, "w").write(resEternalblueJson)
 print(str(len(resEternalBlue)) + " items has eternalblue vulnerability, added to file " + jsonFileNameEternalBlue)
+
+resSmbghostJson = json.dumps(resSmbghost)
+jsonFileNameEternalBlue = fileName.split(".")[0] + "Smbghost.json"
+open(jsonFileNameEternalBlue, "w").write(resSmbghostJson)
+print(str(len(resSmbghostJson)) + " items has smbghost vulnerability, added to file " + jsonFileNameEternalBlue)
