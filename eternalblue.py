@@ -323,91 +323,88 @@ def trans2_request(treeid, processid, userid, multiplex_id):
     return generate_smb_proto_payload(netbios, smb_header, trans2_request)
 
 def exploitEternalblue(ip, port=445):
-    # """Check if MS17_010 SMB Vulnerability exists.
-    # """
-    # try:
-    #     buffersize = 1024
-    #     timeout = 5.0
+    try:
+        buffersize = 1024
+        timeout = 5.0
 
-    #     # Send smb request based on socket.
-    #     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    #     client.settimeout(timeout)
-    #     client.connect((ip, port))
+        # Send smb request based on socket.
+        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.settimeout(timeout)
+        client.connect((ip, port))
 
-    #     # SMB - Negotiate Protocol Request
-    #     raw_proto = negotiate_proto_request()
-    #     client.send(raw_proto)
-    #     tcp_response = client.recv(buffersize)
+        # SMB - Negotiate Protocol Request
+        raw_proto = negotiate_proto_request()
+        client.send(raw_proto)
+        tcp_response = client.recv(buffersize)
 
-    #     # SMB - Session Setup AndX Request
-    #     raw_proto = session_setup_andx_request()
-    #     client.send(raw_proto)
-    #     tcp_response = client.recv(buffersize)
+        # SMB - Session Setup AndX Request
+        raw_proto = session_setup_andx_request()
+        client.send(raw_proto)
+        tcp_response = client.recv(buffersize)
 
-    #     netbios = tcp_response[:4]
-    #     smb_header = tcp_response[4:36]   # SMB Header: 32 bytes
-    #     smb = SMB_HEADER(smb_header)
+        netbios = tcp_response[:4]
+        smb_header = tcp_response[4:36]   # SMB Header: 32 bytes
+        smb = SMB_HEADER(smb_header)
 
-    #     user_id = struct.pack('<H', smb.user_id)
+        user_id = struct.pack('<H', smb.user_id)
 
-    #     # parse native_os from Session Setup Andx Response
-    #     session_setup_andx_response = tcp_response[36:]
-    #     native_os = session_setup_andx_response[9:].split('\x00')[0]
+        # parse native_os from Session Setup Andx Response
+        session_setup_andx_response = tcp_response[36:]
+        native_os = session_setup_andx_response[9:].split('\x00')[0]
 
-    #     # SMB - Tree Connect AndX Request
-    #     raw_proto = tree_connect_andx_request(ip, user_id)
-    #     client.send(raw_proto)
-    #     tcp_response = client.recv(buffersize)
+        # SMB - Tree Connect AndX Request
+        raw_proto = tree_connect_andx_request(ip, user_id)
+        client.send(raw_proto)
+        tcp_response = client.recv(buffersize)
 
-    #     netbios = tcp_response[:4]
-    #     smb_header = tcp_response[4:36]   # SMB Header: 32 bytes
-    #     smb = SMB_HEADER(smb_header)
+        netbios = tcp_response[:4]
+        smb_header = tcp_response[4:36]   # SMB Header: 32 bytes
+        smb = SMB_HEADER(smb_header)
 
-    #     tree_id = struct.pack('<H', smb.tree_id)
-    #     process_id = struct.pack('<H', smb.process_id)
-    #     user_id = struct.pack('<H', smb.user_id)
-    #     multiplex_id = struct.pack('<H', smb.multiplex_id)
+        tree_id = struct.pack('<H', smb.tree_id)
+        process_id = struct.pack('<H', smb.process_id)
+        user_id = struct.pack('<H', smb.user_id)
+        multiplex_id = struct.pack('<H', smb.multiplex_id)
 
-    #     # SMB - PeekNamedPipe Request
-    #     raw_proto = peeknamedpipe_request(tree_id, process_id, user_id, multiplex_id)
-    #     client.send(raw_proto)
-    #     tcp_response = client.recv(buffersize)
+        # SMB - PeekNamedPipe Request
+        raw_proto = peeknamedpipe_request(tree_id, process_id, user_id, multiplex_id)
+        client.send(raw_proto)
+        tcp_response = client.recv(buffersize)
 
-    #     netbios = tcp_response[:4]
-    #     smb_header = tcp_response[4:36]
-    #     smb = SMB_HEADER(smb_header)
+        netbios = tcp_response[:4]
+        smb_header = tcp_response[4:36]
+        smb = SMB_HEADER(smb_header)
 
-    #     # nt_status = smb_header[5:9]
-    #     nt_status = struct.pack('BBH', smb.error_class, smb.reserved1, smb.error_code)
+        # nt_status = smb_header[5:9]
+        nt_status = struct.pack('BBH', smb.error_class, smb.reserved1, smb.error_code)
 
-    #     # 0xC0000205 - STATUS_INSUFF_SERVER_RESOURCES - vulnerable
-    #     # 0xC0000008 - STATUS_INVALID_HANDLE
-    #     # 0xC0000022 - STATUS_ACCESS_DENIED
+        # 0xC0000205 - STATUS_INSUFF_SERVER_RESOURCES - vulnerable
+        # 0xC0000008 - STATUS_INVALID_HANDLE
+        # 0xC0000022 - STATUS_ACCESS_DENIED
 
-    #     if nt_status == '\x05\x02\x00\xc0':
-    #         log.info("[+] [{}] is likely VULNERABLE to MS17-010! ({})".format(ip, native_os))
+        if nt_status == '\x05\x02\x00\xc0':
+            log.info("[+] [{}] is likely VULNERABLE to MS17-010! ({})".format(ip, native_os))
 
-    #         # vulnerable to MS17-010, check for DoublePulsar infection
-    #         raw_proto = trans2_request(tree_id, process_id, user_id, multiplex_id)
-    #         client.send(raw_proto)
-    #         tcp_response = client.recv(buffersize)
+            # vulnerable to MS17-010, check for DoublePulsar infection
+            raw_proto = trans2_request(tree_id, process_id, user_id, multiplex_id)
+            client.send(raw_proto)
+            tcp_response = client.recv(buffersize)
 
-    #         netbios = tcp_response[:4]
-    #         smb_header = tcp_response[4:36]
-    #         smb = SMB_HEADER(smb_header)
+            netbios = tcp_response[:4]
+            smb_header = tcp_response[4:36]
+            smb = SMB_HEADER(smb_header)
 
-    #         if smb.multiplex_id == 0x0051:
-    #           key = calculate_doublepulsar_xor_key(smb.signature)
-    #           return True
-    #     else:
-    #         return False
+            if smb.multiplex_id == 0x0051:
+              key = calculate_doublepulsar_xor_key(smb.signature)
+              return True
+        else:
+            return False
 
-    # except Exception as err:
-    #     log.error("[-] [{}] Exception: {}".format(ip, err))
-    # finally:
-    #     client.close()
-    print(ip, port)
-    return True
+    except Exception as err:
+        log.error("[-] [{}] Exception: {}".format(ip, err))
+    finally:
+        client.close()
+    return False
 
 
 ## References
